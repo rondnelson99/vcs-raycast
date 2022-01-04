@@ -1,2 +1,4 @@
 [objects]
 obj/header.o
+obj/logic.o
+obj/render.o

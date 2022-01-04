@@ -77,7 +77,8 @@ rebuild:
 # How to build a ROM
 $(BINDIR)/%.$(ROMEXT) $(BINDIR)/%.sym: $(patsubst src/%.asm,$(OBJDIR)/%.o,$(SRCS))
 	@$(MKDIR_P) $(@D)
-	$(WLALINK) $(LDFLAGS)  -S  -s  -r linkfile $(BINDIR)/$*.$(ROMEXT) 
+	$(WLALINK) $(LDFLAGS)  -s    -r linkfile $(BINDIR)/$*.$(ROMEXT) 
+	src/tools/debugmap.py $(BINDIR)/$*.sym 
 
 # `.mk` files are auto-generated dependency lists of the "root" ASM files, to save a lot of hassle.
 # Also add all obj dependencies to the dep file too, so Make knows to remake it
@@ -86,8 +87,8 @@ $(BINDIR)/%.$(ROMEXT) $(BINDIR)/%.sym: $(patsubst src/%.asm,$(OBJDIR)/%.o,$(SRCS
 
 $(OBJDIR)/%.o $(DEPDIR)/%.mk : src/%.asm
 	@$(MKDIR_P) $(patsubst %/,%,$(dir $(OBJDIR)/$* $(DEPDIR)/$*))
-	$(WLA6502) $(ASFLAGS) -M $< > $(DEPDIR)/$*.mk
-	$(WLA6502) $(ASFLAGS) -o $(OBJDIR)/$*.o $<
+	$(WLA6502) $(ASFLAGS)  -M $< > $(DEPDIR)/$*.mk
+	$(WLA6502) $(ASFLAGS) -i -o $(OBJDIR)/$*.o $<
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(patsubst src/%.asm,$(DEPDIR)/%.mk,$(SRCS))
