@@ -3,10 +3,16 @@ import sys
 
 def convert_maps(labels_filename):
     labels_file = open(labels_filename, "r+")
-    label_lines = labels_file.readlines()
+    #read all lines after the first two
+    label_lines = labels_file.readlines()[2:]
     # now that we've read the labels file, we can delete its contents
     labels_file.seek(0)
     labels_file.truncate()
+
+
+
+    # now sort the label lines by the hexadecimal address that they start with
+    label_lines.sort(key=lambda line: int((line.split()[0])[3:], 16))
     
     for line in label_lines:
         # remove the newline character
