@@ -1,5 +1,5 @@
 .include "defines.asm"
-
+.section "game logic"  FREE
 DoLogic:
     ; Enable VBLANK again
 	lda #2
@@ -35,3 +35,4 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
     sta VBLANK
 
     jmp DrawFrame
+.ends

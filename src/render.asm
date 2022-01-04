@@ -26,22 +26,22 @@ wLevelPtrHigh: db ;the high byte of the level pointer
 
 .SECTION "Initial X Vector table Top Right", FREE
 YVectorTableBottomRight:
-XVectorTableTopRight:   .DBSIN	0, 90 / HFOV * NUM_SCANLINES , HFOV / NUM_SCANLINES, 255.999 / (2^NUM_VECTOR_DOUBLES), 0
+XVectorTableTopRight:   .DBSIN	0, 90 / HFOV * NUM_VECTOR_ANGLES , HFOV / NUM_VECTOR_ANGLES, 255.999 / (2^NUM_VECTOR_DOUBLES), 0
 .ENDS
 
 .SECTION "Initial X Vector table Bottom Right", FREE
 YVectorTableBottomLeft:
-XVectorTableBottomRight:   .DBSIN	90, 90 / HFOV * NUM_SCANLINES , HFOV / NUM_SCANLINES, 255.999 / (2^NUM_VECTOR_DOUBLES), 0
+XVectorTableBottomRight:   .DBSIN	90, 90 / HFOV * NUM_VECTOR_ANGLES , HFOV / NUM_VECTOR_ANGLES, 255.999 / (2^NUM_VECTOR_DOUBLES), 0
 .ENDS
 
 .SECTION "Initial X Vector table Bottom Left", FREE
 YVectorTableTopLeft:
-XVectorTableBottomLeft:   .DBSIN    180, 90 / HFOV * NUM_SCANLINES , HFOV / NUM_SCANLINES, 255.999 / (2^NUM_VECTOR_DOUBLES), 0
+XVectorTableBottomLeft:   .DBSIN    180, 90 / HFOV * NUM_VECTOR_ANGLES , HFOV / NUM_VECTOR_ANGLES, 255.999 / (2^NUM_VECTOR_DOUBLES), 0
 .ENDS
 
 .SECTION "Initial X Vector table Top Left", FREE
 YVectorTableTopRight:
-XVectorTableTopLeft:   .DBSIN    270, 90 / HFOV * NUM_SCANLINES , HFOV / NUM_SCANLINES, 255.999 / (2^NUM_VECTOR_DOUBLES), 0
+XVectorTableTopLeft:   .DBSIN    270, 90 / HFOV * NUM_VECTOR_ANGLES , HFOV / NUM_VECTOR_ANGLES, 255.999 / (2^NUM_VECTOR_DOUBLES), 0
 .ENDS
 
 
@@ -60,7 +60,7 @@ DrawFrameTopRight:
 CastRayTopRight:
     ;start by getting the X and Y componesnts of the ray
     ldx wRayAngle
-    cpx # 90 / HFOV * NUM_SCANLINES + 1
+    cpx # 90 / HFOV * NUM_VECTOR_ANGLES + 1
     bcc _continue
 
 _continue
