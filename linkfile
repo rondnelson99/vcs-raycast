@@ -3,3 +3,4 @@ obj/level.o
 obj/header.o
 obj/logic.o
 obj/render.o
+obj/misc.o

@@ -8,12 +8,14 @@
 ; The CLEAN_START macro zeroes RAM and registers
 Start	CLEAN_START
 	;init the player position
-	lda #5
+	lda #2
 	sta wPlayerX + 1
 	sta wPlayerY + 1
 	lda #0
 	sta wPlayerX
 	sta wPlayerY
+	lda #%1
+	sta CTRLPF
 	
 
 
