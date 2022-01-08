@@ -12,6 +12,7 @@ wXComponent: db ;the x component of the ray
 wYComponent: db ;the y component of the ray
 wLevelPtr: db ;the low byte of the level pointer
 wLevelPtrHigh: db ;the high byte of the level pointer
+wScanlineCount: db ;how many scanlines are left to draw
 
 .ENDS
 
@@ -120,80 +121,6 @@ YVectorTableTopRight:
 XVectorTableTopLeft:   .DBSIN    270, 90 / HFOV * NUM_VECTOR_ANGLES , HFOV / NUM_VECTOR_ANGLES, 255.999 / (2^NUM_VECTOR_DOUBLES), 0
 .ENDS
 
-.MACRO stepRayTopRight args sizeX sizeY ;takes 49 cycles worst case, 
-    txa ; grad the ray x-coordinate 
-    adc wXComponent
-    tax ; store the x-coordinate
-    bcc _x_done_wait\@ ;
-    ;if the ray's fractional x coordinate overflowed, then increment the integer part
-    ;this is in Y
-    iny
-    iny 
-
-    ;now check for collision with the level
-    iny
-    lda (wLevelPtr),y ;read the level data ; 20 cycles
-    beq _x_done_dey\@
-
-    fill_pf_pixels sizeX
-
-    jmp CastRayTopRight
-_x_done_wait\@
-    ; 10 cycles have elapsed, so we need to wait 15 cycles before moving to the Y
-    jsr DelayRTS
-    bcc _x_done\@
-_x_done_dey\@
-    dey 
-
-_x_done\@; 25 cycles elapsed
-    ; the ray has now travveled approx. 1-1/4 steps
-
-    lda wRayY
-    adc wYComponent
-    sta wRayY ;34 cycles
-    bcs _y_done_wait\@
-    ;if the ray's fractional y coordinate underflowed, then decrement the integer part
-    ; this is in memory
-    dec wLevelPtrHigh
-    ;now check for collision with the level
-    lda (wLevelPtr),y ;read the level data
-    beq _y_done\@
-    ;if the ray hit a wall, then a contains the wall's color
-    sta COLUPF
-    fill_pf_pixels sizeY
-
-    jmp CastRayTopRight
-
-_y_done_wait\@
-    ; 37 cycles elapsed, so we need to wait 12 cycles before finishing
-    jsr DelayRTS
-_y_done\@ ;49 cycles have elapsed
-.ENDM
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 .SECTION "Draw Frame Top Right", FREE
 DrawFrame:
@@ -212,28 +139,29 @@ CastRayTopRight:
     sta wLevelPtrHigh
     lda wPlayerX + 1 ;high byte of the player x-coordinate
     asl
-    tay
+    tay ;20 cycles
     ;start by getting the X and Y componesnts of the ray
     ldx wRayAngle
     cpx # 90 / HFOV * NUM_VECTOR_ANGLES + 1
     bcc _continue_wait
     ;jmp CastRayBottomRight_continue
 _continue_wait
-    nop
+    nop ;30 cycles
 _continue
     lda.w XVectorTableTopRight,x ;get the initial x component of the ray
     sta wXComponent
     lsr a ;the x component get halved for the first half-step
+    ; 39 cycles
 
     ; now cast the ray the first half-step
     adc wPlayerX ;add the player's x coordinate to the x component of the ray
-    tax ;store the new x coordinate of the ray
-    bcc _first_x_done
+    sta wRayX ;store the new x coordinate of the ray
+    bcc _first_x_done 
 
     ;if the ray's fractional x coordinate overflowed, then increment the integer part
     ;this is in Y
     iny
-    iny
+    iny ;51 cycles
 
     ;now check for collision with the level
     iny
@@ -250,20 +178,19 @@ _first_x_done_wait
     jsr DelayRTS
     bcc _first_x_done
 _first_x_done_dey
-    dey
+    dey ;63 cycles
 
 _first_x_done
     ;the ray has now travelled approx. 1/4 of a step
-    ldx wRayAngle
     lda.w YVectorTableTopRight,x ;get the initial y component of the ray
     ; no halving for the Y
     sta wYComponent
     adc wPlayerY ;add the player's y coordinate to the y component of the ray
     sta wRayY ;store the new y coordinate of the ray
-    bcs _first_y_done_wait
+    bcs _first_y_done_wait ;78 cycles not taken
     ;if the ray's fractional y coordinate underflowed, then decrement the integer part
     ; this is in memory
-    dec wLevelPtrHigh
+    dec wLevelPtrHigh ;83 cycles
     ;now check for collision with the level
     lda (wLevelPtr),y ;read the level data
     beq _first_y_done
@@ -276,6 +203,75 @@ _first_y_done_wait
     ;wait 12 cycles before finishing
     jsr DelayRTS
 _first_y_done
+    ;91 cycles
+_step_ray_loop_wsync
+    sta WSYNC
+
+_step_ray_loop
+    ;first, check if we need to double the ray deltas
+    ;lda wRayDoubleTable,x ; 4 cycles
+    beq _skip_doubling ;6 cycles
+    ;double the ray deltas
+    asl wXComponent
+    asl wYComponent ;16 cycles
+
+_skip_doubling
+    lda wRayX ; grab the ray x-coordinate 
+    adc wXComponent
+    sta wRayX ; store the x-coordinate
+    bcc _x_done_wait\@ ;27 cycles
+    ;if the ray's fractional x coordinate overflowed, then increment the integer part
+    ;this is in Y
+    iny
+    iny ;31 cycles
+
+    ;now check for collision with the level
+    iny
+    lda (wLevelPtr),y ;read the level data
+    beq _x_done_dey\@ ;40 cycles
+
+    fill_pf_pixels 20
+
+    jmp CastRayTopRight
+_x_done_wait\@
+    ; 10 cycles have elapsed, so we need to wait 15 cycles before moving to the Y
+    jsr DelayRTS
+    bcc _x_done\@
+_x_done_dey\@
+    dey ;42 cycles
+
+_x_done\@; 42 cycles elapsed
+
+    lda wRayY
+    adc wYComponent
+    sta wRayY 
+    bcs _y_done_wait\@ ;53 cycles not taken
+    ;if the ray's fractional y coordinate underflowed, then decrement the integer part
+    ; this is in memory
+    dec wLevelPtrHigh ;58 cycles
+    ;now check for collision with the level
+    lda (wLevelPtr),y ;read the level data
+    beq _y_done\@ ;66 cycles
+    ;if the ray hit a wall, then a contains the wall's color
+    sta COLUPF
+    fill_pf_pixels 20
+
+    jmp CastRayTopRight
+
+_y_done_wait\@
+    ; 39 cycles elapsed, so we need to wait 12 cycles before finishing
+    jsr DelayRTS
+_y_done\@ ;66 cycles have elapsed
+
+_finish_ray_step
+    dex ; moving to the next ray step ;68 cycles
+    beq _exit ; 70 cycles
+    jmp _step_ray_loop_wsync ;73 cycles, 76 after WSYNC
+
+_exit ; exit after the ray goes too far. Allows a sort of "render distence" function.
+.ends
+
+/*
     ; the ray has now travveled approx. 3/4 steps
     stepRayTopRight 20 20 ;each one of these takes 49 cycles unless the ray collides with a wall
     ; the ray has now travveled approx. 1 3/4 steps
@@ -334,4 +330,4 @@ FinishTopRight:
 
     jmp CastRayTopRight
   
-.ENDS
+.ENDS*/
