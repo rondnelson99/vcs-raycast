@@ -21,84 +21,41 @@ wScanlineCount: db ;how many scanlines are left to draw
 .def NUM_VECTOR_DOUBLES 4
 .def NUM_VECTOR_ANGLES NUM_SCANLINES/2 
 ;half the size of the trig tables by only rendering half the scanlines with different angles
-
-.MACRO fill_pf_pixels args SIZE ;fill the playfield with a line of pixels in the middle of the screen
-    .if SIZE == 20
-        lda #$ff
-        sta PF0
-        sta PF1
-        sta PF2
-    .elif SIZE > 16
-        lda # ($f00 >> (SIZE - 16)) & $ff
-        sta PF0
-        lda #$ff
-        sta PF1
-        sta PF2
-    .elif SIZE == 16
-        lda #0
-        sta PF0
-        lda #$ff
-        sta PF1
-        sta PF2
-    .elif SIZE == 15
-        lda #0
-        sta PF0
-        lda #$ff
-        sta PF2
-        lsr a ; lda #%01111111
-        sta PF1
-
-    .elif SIZE == 14
-        lda #0
-        sta PF0
-        lda #%00111111
-        sta PF1
-        lda #$ff
-        sta PF2
-
-    .elif SIZE == 13
-        lda #%00011111
-        sta PF1
-        lsr a ; lda #%00001111
-        sta PF0
-        lda #$ff
-        sta PF2
-
-    .elif SIZE > 8
-        lda # $ff >> (16 - SIZE)
-        sta PF0
-        sta PF1
-        lda #$ff
-        sta PF2
-    
-    .elif SIZE > 1
-        lda #0
-        sta PF0
-        sta PF1
-        lda # ($ff00 >> SIZE) & $ff
-        sta PF2
-
-    .elif SIZE == 1
-        lda #%10000000
-        sta PF2
-        asl a ; lda #0
-        sta PF0
-        sta PF1
-    .elif SIZE == 0
-        lda #0
-        sta PF0
-        sta PF1
-        sta PF2
-    .endif
-.endm
-
-
-
+.def NUM_RAY_STEPS 13 ;how many times to march the ray in a loop until we just give up
 
 
 
 
 .slot "ROM"
+
+.macro playfield0 args SIZE
+    .db $ff00 >> (SIZE - 16) & $ff
+.endm
+.macro playfield1 args SIZE
+    .db ($ffff << (SIZE - 8)) >> 16 & $ff
+.endm
+.macro playfield2 args SIZE
+    .db $ffffff00 >> (SIZE) & $ff
+.endm
+
+
+
+.arraydefine pfSizePerStep NUM_RAY_STEPS
+.arrayin pfSizePerStep 0 19,14,11,10,8,7,6,5,4,3,2,1,1
+
+.SECTION "PF0 per ray step", FREE
+    .rept NUM_RAY_STEPS
+
+    .endr
+.ENDS
+
+.SECTION "Vector Double Table", FREE
+VectorDoubleTable:
+; uses 0 and 1 bytes to tell whether to shift the ray step vectors left or not
+; this is indexed using a decrementing pointer, so the order is backwards
+.db 0,0,1,1,0,1,1,0,0,0,0,0,0
+.ENDS
+
 
 
 .SECTION "Initial X Vector table Top Right", FREE
@@ -203,13 +160,15 @@ _first_y_done_wait
     ;wait 12 cycles before finishing
     jsr DelayRTS
 _first_y_done
+
+    ldx # NUM_RAY_STEPS
     ;91 cycles
 _step_ray_loop_wsync
     sta WSYNC
 
 _step_ray_loop
     ;first, check if we need to double the ray deltas
-    ;lda wRayDoubleTable,x ; 4 cycles
+    lda VectorDoubleTable,x ; 4 cycles
     beq _skip_doubling ;6 cycles
     ;double the ray deltas
     asl wXComponent
